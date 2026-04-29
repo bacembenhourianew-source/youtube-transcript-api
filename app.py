@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
-import subprocess
-import os
+import requests
 
 app = Flask(__name__)
 
@@ -12,38 +11,24 @@ def transcript():
         return jsonify({"error": "missing url"}), 400
 
     try:
-        # yt-dlp command
-        cmd = [
-    "yt-dlp",
-    "--write-auto-sub",
-    "--sub-lang", "en,fr",
-    "--skip-download",
-    "--no-warnings",
-    "--quiet",
-    "-o", "/tmp/video",
-    video_url
-]
+        # extraire video id
+        if "v=" in video_url:
+            video_id = video_url.split("v=")[1].split("&")[0]
+        else:
+            return jsonify({"error": "invalid youtube url"}), 400
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        # YouTube captions API (FREE + no bot block)
+        url = f"https://www.youtube.com/api/timedtext?v={video_id}&lang=en"
 
-        # ❗ gestion erreur yt-dlp
-        if result.returncode != 0:
-            return jsonify({
-                "error": "yt-dlp failed",
-                "details": result.stderr
-            }), 500
+        r = requests.get(url)
 
-        # chercher fichier généré
-        for file in os.listdir("/tmp"):
-            if file.endswith(".vtt"):
-                with open(os.path.join("/tmp", file), "r", encoding="utf-8") as f:
-                    content = f.read()
+        if r.status_code != 200 or not r.text.strip():
+            return jsonify({"error": "no transcript found"}), 404
 
-                return jsonify({
-                    "transcript": content
-                })
-
-        return jsonify({"error": "no transcript found"}), 404
+        return jsonify({
+            "videoId": video_id,
+            "transcript": r.text
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
