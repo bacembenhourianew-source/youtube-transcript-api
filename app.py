@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
-import requests
-from urllib.parse import urlparse, parse_qs
+import subprocess
+import os
 
 app = Flask(__name__)
 
@@ -12,37 +12,41 @@ def transcript():
         return jsonify({"error": "missing url"}), 400
 
     try:
-        # 🔵 extraction robuste du video_id
-        parsed = urlparse(video_url)
-        video_id = parse_qs(parsed.query).get("v", [None])[0]
+        cmd = [
+            "yt-dlp",
+            "--write-auto-sub",
+            "--sub-lang", "en,fr",
+            "--skip-download",
+            "--no-warnings",
+            "--quiet",
+            "--cookies", "cookies.txt",
+            "-o", "/tmp/video",
+            video_url
+        ]
 
-        if not video_id:
-            return jsonify({"error": "invalid youtube url"}), 400
+        result = subprocess.run(cmd, capture_output=True, text=True)
 
-        # 🔵 langues à tester
-        langs = ["en", "fr", "en-US"]
+        if result.returncode != 0:
+            return jsonify({
+                "error": "yt-dlp failed",
+                "details": result.stderr
+            }), 500
 
-        # 🔵 tentative récupération transcript
-        for lang in langs:
-            url = f"https://www.youtube.com/api/timedtext?v={video_id}&lang={lang}"
-            r = requests.get(url)
+        # récupérer fichier subtitle
+        for file in os.listdir("/tmp"):
+            if file.endswith(".vtt"):
+                with open(os.path.join("/tmp", file), "r", encoding="utf-8") as f:
+                    content = f.read()
 
-            if r.status_code == 200 and r.text.strip():
                 return jsonify({
-                    "videoId": video_id,
-                    "lang": lang,
-                    "transcript": r.text
+                    "transcript": content
                 })
 
-        return jsonify({
-            "error": "no transcript found",
-            "videoId": video_id
-        }), 404
+        return jsonify({"error": "no transcript found"}), 404
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# 🔵 obligatoire pour Render
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
