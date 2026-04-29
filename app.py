@@ -14,16 +14,15 @@ def transcript():
     try:
         # yt-dlp command
         cmd = [
-            "yt-dlp",
-            "--write-auto-sub",
-            "--sub-lang", "en,fr",
-            "--skip-download",
-            "--convert-subs", "vtt",
-            "--no-warnings",
-            "--quiet",
-            "-o", "/tmp/video",
-            video_url
-        ]
+    "yt-dlp",
+    "--write-auto-sub",
+    "--sub-lang", "en,fr",
+    "--skip-download",
+    "--no-warnings",
+    "--quiet",
+    "-o", "/tmp/video",
+    video_url
+]
 
         result = subprocess.run(cmd, capture_output=True, text=True)
 
