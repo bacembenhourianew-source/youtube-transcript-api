@@ -13,23 +13,22 @@ def transcript():
     try:
         # extraire video id
         if "v=" in video_url:
-            video_id = video_url.split("v=")[1].split("&")[0]
-        else:
-            return jsonify({"error": "invalid youtube url"}), 400
+        video_id = video_url.split("v=")[1].split("&")[0]
 
-        # YouTube captions API (FREE + no bot block)
-        url = f"https://www.youtube.com/api/timedtext?v={video_id}&lang=en"
+langs = ["en", "fr", "en-US"]
 
-        r = requests.get(url)
+for lang in langs:
+    url = f"https://www.youtube.com/api/timedtext?v={video_id}&lang={lang}"
+    r = requests.get(url)
 
-        if r.status_code != 200 or not r.text.strip():
-            return jsonify({"error": "no transcript found"}), 404
-
+    if r.status_code == 200 and r.text.strip():
         return jsonify({
             "videoId": video_id,
+            "lang": lang,
             "transcript": r.text
         })
 
+return jsonify({"error": "no transcript found"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
